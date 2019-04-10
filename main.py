@@ -4,7 +4,7 @@ import torch
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
 
-from catmullrom import CatmullRomSpline
+from catmullrom import CatmullRomActivation
 
 def initialize_cp_tanh(range_min, range_max, cp_num):
     """Initializes the control points by sampling them uniformly from hyperbolic tangent tanh.
@@ -27,13 +27,13 @@ if __name__ == "__main__":
     num_inputs = 100
 
     # 3 neurons, 22 control points for each one
-    control_points = Variable(torch.tensor([initialize_cp_tanh(range_min, range_max, num_control_points),
-        initialize_cp_tanh(range_min, range_max, num_control_points), initialize_cp_tanh(range_min, range_max, num_control_points)]), requires_grad = True)
+    initial_control_points = torch.tensor([initialize_cp_tanh(range_min, range_max, num_control_points),
+        initialize_cp_tanh(range_min, range_max, num_control_points), initialize_cp_tanh(range_min, range_max, num_control_points)])
 
-    cm = CatmullRomSpline(range_min, range_max, control_points)
+    cm = CatmullRomActivation(range_min, range_max, initial_control_points.clone())
 
     inputs = Variable(torch.tensor(np.linspace(input_range_min, input_range_max, num=num_inputs)), requires_grad = False)
-    output = cm.interpolate_CR(inputs)
+    output = cm(inputs)
 
     plt.plot(inputs.data.numpy(), output.data.numpy()[:, 0])
     plt.show()

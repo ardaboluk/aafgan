@@ -5,22 +5,25 @@
 
 import numpy as np
 import torch
+import torch.nn as nn
 from torch.autograd import Variable
 
-class CatmullRomSpline:
+class CatmullRomActivation(nn.Module):
 
     def __init__(self, range_min, range_max, control_points_mat):
         """range_min and range_max specify the range in which the control points are defined.
         control_points_mat hyperparameter spcifies control points for each neuron in the layer.
         It's shape is (nxk) where n is the number of neurons and k is the number of control points.
-        The first entry in control_points_arr is assumed to be the first ghost point.
-        Similarly, the last entry in control_points_arr is assumed to be the second ghost point."""
+        The first entry in a row of control_points_mat is assumed to be the first ghost point.
+        Similarly, the last entry in a row of control_points_mat is assumed to be the second ghost point."""
+
+        super(CatmullRomActivation, self).__init__()
 
         self.range_min = range_min
         self.range_max = range_max
 
         # control_points_mat is assumed to be a tensor wrapped with Variable, because its gradient will be calculated
-        self.control_points_mat = control_points_mat
+        self.control_points_mat = Variable(control_points_mat, requires_grad = True)
 
         # number of control points, excluding the ghost points
         self.cp_num = self.control_points_mat.size()[1] - 2
@@ -34,7 +37,7 @@ class CatmullRomSpline:
         [-1., 0., 1., 0.],
         [0., 2., 0., 0.]]).double()
 
-    def interpolate_CR(self, input_s_vec):
+    def forward(self, input_s_vec):
         """Returns the Catmull-Rom spline interpolation for a given set of points.
         input_s_vec is assumed to be a numpy array"""
 
