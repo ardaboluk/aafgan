@@ -5,6 +5,7 @@
 
 import numpy as np
 import torch
+from torch.autograd import Variable
 
 class CatmullRomSpline:
 
@@ -18,13 +19,8 @@ class CatmullRomSpline:
         self.range_min = range_min
         self.range_max = range_max
 
-        # control_points_mat should be a tensor
-        if (type(control_points_mat) is np.ndarray) or (type(control_points_mat) is list):
-            self.control_points_mat = torch.tensor(control_points_mat)
-        elif type(control_points_mat) is torch.Tensor:
-            self.control_points_mat = control_points_mat
-        else:
-            self.control_points_mat = None
+        # control_points_mat is assumed to be a tensor wrapped with Variable, because its gradient will be calculated
+        self.control_points_mat = control_points_mat
 
         # number of control points, excluding the ghost points
         self.cp_num = self.control_points_mat.size()[1] - 2
@@ -42,20 +38,18 @@ class CatmullRomSpline:
         """Returns the Catmull-Rom spline interpolation for a given set of points.
         input_s_vec is assumed to be a numpy array"""
 
-        # input_s_vec should be a numpy ndarray
-        if type(input_s_vec) is list:
-            input_s_vec = np.array(input_s_vec)
+        # input_s_vec is assumed to be a tensor wrapped with Variable, but its gradient won't be calculated
 
         # output is a mxn matrix where m is the number of inputs and n is the number of neurons in the layer
-        output_mat = torch.empty(input_s_vec.shape[0], self.control_points_mat.size()[0])
+        output_mat = torch.empty(input_s_vec.size()[0], self.control_points_mat.size()[0])
 
         # inputs should be between range_min and range_max
         # if it is, map each input to index of corresponding P0
         # if not, each one to one of the corresponding edge interval, depending on the magnitude
-        p_0_ind = np.floor((input_s_vec - self.range_min) * (self.cp_num - 2) / (self.range_max - self.range_min) + 1)
+        p_0_ind = torch.floor((input_s_vec - self.range_min) * (self.cp_num - 2) / (self.range_max - self.range_min) + 1)
         p_0_ind[input_s_vec <= self.range_min] = 1
         p_0_ind[input_s_vec >= self.range_max] = self.cp_num - 1
-        p_0_ind = p_0_ind.astype(int)
+        p_0_ind = p_0_ind.int()
 
         # find the indices of the 3 remaining control points
         p__1_ind = p_0_ind - 1
@@ -64,12 +58,12 @@ class CatmullRomSpline:
 
         # normalize the input
         temp_u_vec = input_s_vec / self.delta_x
-        u = temp_u_vec - np.floor(temp_u_vec)
+        u = temp_u_vec - torch.floor(temp_u_vec)
 
         # vectorize the normalized inputs to obtain matrix U of size (mx4) where m is the number of inputs
-        U = torch.tensor([np.power(u, 3), np.power(u, 2), u, np.ones(u.shape[0])]).t().unsqueeze(1)
+        U = torch.stack((torch.pow(u, 3), torch.pow(u, 2), u, torch.ones(u.size()[0]).double()), 1).unsqueeze(1)
 
-        for input_ind in range(input_s_vec.shape[0]):
+        for input_ind in range(input_s_vec.size()[0]):
             Q = torch.stack((self.control_points_mat[:, p__1_ind[input_ind]], self.control_points_mat[:, p_0_ind[input_ind]],
                 self.control_points_mat[:, p_1_ind[input_ind]], self.control_points_mat[:, p_2_ind[input_ind]]), 0)
 

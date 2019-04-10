@@ -1,6 +1,7 @@
 
 import numpy as np
 import torch
+from torch.autograd import Variable
 import matplotlib.pyplot as plt
 
 from catmullrom import CatmullRomSpline
@@ -26,10 +27,13 @@ if __name__ == "__main__":
     num_inputs = 100
 
     # 3 neurons, 22 control points for each one
-    control_points = np.array([initialize_cp_tanh(range_min, range_max, num_control_points),
-        initialize_cp_tanh(range_min, range_max, num_control_points), initialize_cp_tanh(range_min, range_max, num_control_points)])
+    control_points = Variable(torch.tensor([initialize_cp_tanh(range_min, range_max, num_control_points),
+        initialize_cp_tanh(range_min, range_max, num_control_points), initialize_cp_tanh(range_min, range_max, num_control_points)]), requires_grad = True)
 
     cm = CatmullRomSpline(range_min, range_max, control_points)
 
-    inputs = np.linspace(input_range_min, input_range_max, num=num_inputs)
+    inputs = Variable(torch.tensor(np.linspace(input_range_min, input_range_max, num=num_inputs)), requires_grad = False)
     output = cm.interpolate_CR(inputs)
+
+    plt.plot(inputs.data.numpy(), output.data.numpy()[:, 0])
+    plt.show()
