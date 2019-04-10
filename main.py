@@ -22,18 +22,19 @@ if __name__ == "__main__":
     range_max = 2.
     num_control_points = 22
 
-    input_range_min = -10.
-    input_range_max = 10.
     num_inputs = 100
+    input_dim = 1000
 
     # 3 neurons, 22 control points for each one
     initial_control_points = torch.tensor([initialize_cp_tanh(range_min, range_max, num_control_points),
         initialize_cp_tanh(range_min, range_max, num_control_points), initialize_cp_tanh(range_min, range_max, num_control_points)])
 
-    cm = CatmullRomActivation(range_min, range_max, initial_control_points.clone())
+    cm = CatmullRomActivation(range_min, range_max, input_dim, initial_control_points.clone())
 
-    inputs = Variable(torch.tensor(np.linspace(input_range_min, input_range_max, num=num_inputs)), requires_grad = False)
+    inputs = torch.tensor(np.random.rand(100,input_dim))
     output = cm(inputs)
 
-    plt.plot(inputs.data.numpy(), output.data.numpy()[:, 0])
-    plt.show()
+    print(output)
+
+    #plt.plot(inputs.numpy(), output.data.numpy()[:, 0])
+    #plt.show()

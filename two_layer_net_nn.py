@@ -1,4 +1,7 @@
+import numpy as np
 import torch
+
+from catmullrom import CatmullRomActivation
 
 """
 A fully-connected ReLU network with one hidden layer, trained to predict y from x
@@ -11,8 +14,24 @@ which you can think of as a neural network layer that has produces output from
 input and may have some trainable weights or other state.
 """
 
+def initialize_cp_tanh(range_min, range_max, cp_num):
+    """Initializes the control points by sampling them uniformly from hyperbolic tangent tanh.
+    Ghost points are trivial, the first one is to the left of the left-most control point.
+    Similarly, the second one is to the right of the right-most control point."""
+
+    init_cp = np.tanh(np.linspace(range_min, range_max, num=cp_num))
+
+    return init_cp
+
 device = torch.device('cpu')
 # device = torch.device('cuda') # Uncomment this to run on GPU
+
+range_min = -2.
+range_max = 2.
+num_control_points = 22
+
+# 3 neurons, 22 control points for each one
+initial_control_points = torch.tensor(initialize_cp_tanh(range_min, range_max, num_control_points))
 
 # N is batch size; D_in is input dimension;
 # H is hidden dimension; D_out is output dimension.
@@ -30,7 +49,8 @@ y = torch.randn(N, D_out, device=device)
 # desired device.
 model = torch.nn.Sequential(
           torch.nn.Linear(D_in, H),
-          torch.nn.ReLU(),
+          #torch.nn.ReLU(),
+          CatmullRomActivation(range_min, range_max, H, H, initial_control_points),
           torch.nn.Linear(H, D_out),
         ).to(device)
 
