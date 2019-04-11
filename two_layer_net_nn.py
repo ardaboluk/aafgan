@@ -16,8 +16,8 @@ which you can think of as a neural network layer that has produces output from
 input and may have some trainable weights or other state.
 """
 
-device = torch.device('cpu')
-#device = torch.device('cuda') # Uncomment this to run on GPU
+#device = torch.device('cpu')
+device = torch.device('cuda') # Uncomment this to run on GPU
 
 range_min = -2.
 range_max = 2.
@@ -60,7 +60,7 @@ loss_fn = torch.nn.MSELoss(reduction='sum')
 
 #learning_rate = 1e-4
 learning_rate = 1e-4
-for t in range(500):
+for t in range(2500):
   # Forward pass: compute predicted y by passing x to the model. Module objects
   # override the __call__ operator so you can call them like functions. When
   # doing so you pass a Tensor of input data to the Module and it produces
@@ -92,8 +92,20 @@ for t in range(500):
             param.data -= cr_learning_rate * param.grad
         else:
             param.data -= learning_rate * param.grad
+            
+    # if t% 50 == 0:
+        # if device.type == 'cuda':
+            # util.plot_control_points(range_min, range_max, next(itertools.islice(model.modules(), 2, 3)).control_points_mat.cpu().data.numpy()[1])
+        # elif device.type == 'cpu':
+            # util.plot_control_points(range_min, range_max, next(itertools.islice(model.modules(), 2, 3)).control_points_mat.data.numpy()[1])
 
-util.plot_control_points(range_min, range_max, next(itertools.islice(model.modules(), 2, 3)).control_points_mat.data.numpy()[1])
+if device.type == 'cuda':
+    util.plot_control_points(range_min, range_max, next(itertools.islice(model.modules(), 2, 3)).control_points_mat.cpu().data.numpy()[1])
+elif device.type == 'cpu':
+    util.plot_control_points(range_min, range_max, next(itertools.islice(model.modules(), 2, 3)).control_points_mat.data.numpy()[1])
 
 # print the final control points of Catmull-Rom activation
-print(torch.sum(torch.abs(next(itertools.islice(model.modules(), 2, 3)).control_points_mat - initial_control_points)).data.numpy())
+if device.type == 'cuda':
+    print(torch.sum(torch.abs(next(itertools.islice(model.modules(), 2, 3)).control_points_mat.cpu() - initial_control_points.cpu())).data.numpy())
+elif device.type == 'cpu':
+    print(torch.sum(torch.abs(next(itertools.islice(model.modules(), 2, 3)).control_points_mat - initial_control_points)).data.numpy())

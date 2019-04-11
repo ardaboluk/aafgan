@@ -58,7 +58,7 @@ class CatmullRomActivation(nn.Module):
         p_0_ind[input_s_vec <= self.range_min] = 1
         p_0_ind[input_s_vec >= self.range_max] = self.cp_num - 1
         p_0_ind = p_0_ind.int()
-        p_0_ind = p_0_ind.unsqueeze(1)
+        #p_0_ind = p_0_ind.unsqueeze(1)
 
         # find the indices of the 3 remaining control points
         p__1_ind = p_0_ind - 1
@@ -70,13 +70,19 @@ class CatmullRomActivation(nn.Module):
         temp_u_vec = input_s_vec / self.delta_x
         u = temp_u_vec - torch.floor(temp_u_vec)
 
-        # vectorize the normalized inputs to obtain matrix U of size (mxnx4)
-        U = torch.stack((torch.pow(u, 3), torch.pow(u, 2), u, torch.ones(u.size()).to(self.device)), 2)
-
-        for input_ind in range(input_s_vec.size()[0]):
-            Q = torch.stack((self.control_points_mat.gather(1, p__1_ind[input_ind].t().long()), self.control_points_mat.gather(1, p_0_ind[input_ind].t().long()),
-                self.control_points_mat.gather(1, p_1_ind[input_ind].t().long()), self.control_points_mat.gather(1, p_2_ind[input_ind].t().long())), 1).squeeze(2).t()
-
-            output_mat[input_ind] = torch.mm(torch.mm(U[input_ind], self.basis_mat), Q.float()).diag()
-
+        # vectorize the normalized inputs to obtain matrix U of size ((m*n) x 4)
+        U = torch.stack((torch.pow(u, 3), torch.pow(u, 2), u, torch.ones(u.size()).to(self.device)), 2).view(input_s_vec.size()[0] * self.num_neurons, 4)
+        
+        # vectorize the Q matrix so that it's of size (4 x (n*m))
+        Q = torch.cat((torch.gather(self.control_points_mat, 1, p__1_ind.t().long()).view(1, self.num_neurons * input_s_vec.size()[0]), 
+            torch.gather(self.control_points_mat, 1, p_0_ind.t().long()).view(1, self.num_neurons * input_s_vec.size()[0]), 
+            torch.gather(self.control_points_mat, 1, p_1_ind.t().long()).view(1, self.num_neurons * input_s_vec.size()[0]),
+            torch.gather(self.control_points_mat, 1, p_2_ind.t().long()).view(1, self.num_neurons * input_s_vec.size()[0])), 0)
+        # Q = torch.cat((torch.gather(self.control_points_mat, 1, p__1_ind.t().long()), torch.gather(self.control_points_mat, 1, p_0_ind.t().long()), 
+            # torch.gather(self.control_points_mat, 1, p_1_ind.t().long()), torch.gather(self.control_points_mat, 1, p_2_ind.t().long())), 1).view(4, self.num_neurons * input_s_vec.size()[0])
+            
+        mat_1 = U.mm(self.basis_mat).to(self.device)
+        mat_1 = torch.index_select(mat_1, 1, torch.tensor([3,2,1,0]).to(self.device))
+        output_mat = torch.sum(mat_1.t() * Q.float(), 0).view(input_s_vec.size()[0], self.num_neurons)
+        
         return output_mat
