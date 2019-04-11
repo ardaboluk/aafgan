@@ -10,7 +10,7 @@ from torch.nn.parameter import Parameter
 
 class CatmullRomActivation(nn.Module):
 
-    def __init__(self, range_min, range_max, input_dim, initial_control_points):
+    def __init__(self, device, range_min, range_max, input_dim, initial_control_points):
         """range_min and range_max specify the range in which the control points are defined.
         initial_control_points_mat hyperparameter spcifies control points for each neuron in the layer.
         It's shape is assumed to be (1xk) where k is the number of control points.
@@ -19,6 +19,8 @@ class CatmullRomActivation(nn.Module):
         Similarly, the last entry in a row of control_points_mat is assumed to be the second ghost point."""
 
         super(CatmullRomActivation, self).__init__()
+        
+        self.device = device
 
         self.range_min = range_min
         self.range_max = range_max
@@ -39,14 +41,14 @@ class CatmullRomActivation(nn.Module):
         [[-1., 3., -3., 1.],
         [2., -5., 4., -1.],
         [-1., 0., 1., 0.],
-        [0., 2., 0., 0.]])
+        [0., 2., 0., 0.]]).to(self.device)
 
     def forward(self, input_s_vec):
         """Returns the Catmull-Rom spline interpolation for a given set of points.
         input_s_vec is assumed to be a tensor of size (mxn) where m is the number of inputs and n is the input dimension. """
 
         # output is of size (mxn) where m is the number of inputs and n is the number of neurons in the layer
-        output_mat = torch.empty(input_s_vec.size()[0], self.num_neurons)
+        output_mat = torch.empty(input_s_vec.size()[0], self.num_neurons).to(self.device)
 
         # indices of each control point are also of size (mxn), because we need different indices for each neuron for each sample
         # inputs should be between range_min and range_max
@@ -69,7 +71,7 @@ class CatmullRomActivation(nn.Module):
         u = temp_u_vec - torch.floor(temp_u_vec)
 
         # vectorize the normalized inputs to obtain matrix U of size (mxnx4)
-        U = torch.stack((torch.pow(u, 3), torch.pow(u, 2), u, torch.ones(u.size())), 2)
+        U = torch.stack((torch.pow(u, 3), torch.pow(u, 2), u, torch.ones(u.size()).to(self.device)), 2)
 
         for input_ind in range(input_s_vec.size()[0]):
             Q = torch.stack((self.control_points_mat.gather(1, p__1_ind[input_ind].t().long()), self.control_points_mat.gather(1, p_0_ind[input_ind].t().long()),

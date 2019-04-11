@@ -17,7 +17,7 @@ input and may have some trainable weights or other state.
 """
 
 device = torch.device('cpu')
-# device = torch.device('cuda') # Uncomment this to run on GPU
+#device = torch.device('cuda') # Uncomment this to run on GPU
 
 range_min = -2.
 range_max = 2.
@@ -26,7 +26,7 @@ cr_learning_rate = 1e-1
 lambda_cr_reg = 1e-7
 
 # 3 neurons, 22 control points for each one
-initial_control_points = torch.tensor(util.initialize_cp_tanh(range_min, range_max, num_control_points))
+initial_control_points = torch.tensor(util.initialize_cp_tanh(range_min, range_max, num_control_points)).to(device)
 util.plot_control_points(range_min, range_max, initial_control_points)
 
 # N is batch size; D_in is input dimension;
@@ -46,7 +46,7 @@ y = torch.randn(N, D_out, device=device)
 model = torch.nn.Sequential(
           torch.nn.Linear(D_in, H),
           #torch.nn.ReLU(),
-          CatmullRomActivation(range_min, range_max, H, initial_control_points),
+          CatmullRomActivation(device, range_min, range_max, H, initial_control_points),
           torch.nn.Linear(H, D_out),
         ).to(device)
 
