@@ -22,6 +22,8 @@ device = torch.device('cpu')
 range_min = -2.
 range_max = 2.
 num_control_points = 22
+cr_learning_rate = 1e-1
+lambda_cr_reg = 1e-7
 
 # 3 neurons, 22 control points for each one
 initial_control_points = torch.tensor(util.initialize_cp_tanh(range_min, range_max, num_control_points))
@@ -56,9 +58,7 @@ model = torch.nn.Sequential(
 # squared error as a loss by setting reduction='elementwise_mean'.
 loss_fn = torch.nn.MSELoss(reduction='sum')
 
-#crlayer = next(itertools.islice(model.modules(), 2, 3))
-#loss_fn = loss_fn + torch.sum((crlayer.control_points_mat - initial_control_points)**2)
-
+#learning_rate = 1e-4
 learning_rate = 1e-4
 for t in range(500):
   # Forward pass: compute predicted y by passing x to the model. Module objects
@@ -69,7 +69,9 @@ for t in range(500):
 
   # Compute and print loss. We pass Tensors containing the predicted and true
   # values of y, and the loss function returns a Tensor containing the loss.
-  loss = loss_fn(y_pred, y)
+  crlayer = next(itertools.islice(model.modules(), 2, 3))
+  cr_l2_regularization = torch.sum((crlayer.control_points_mat - initial_control_points)**2).float()
+  loss = loss_fn(y_pred, y) + lambda_cr_reg * cr_l2_regularization
   print(t, loss.item())
 
   # Zero the gradients before running the backward pass.
@@ -87,7 +89,7 @@ for t in range(500):
     for name, param in model.named_parameters():
         #print(name)
         if name == '1.control_points_mat':
-            param.data -= learning_rate * 1000 * param.grad
+            param.data -= cr_learning_rate * param.grad
         else:
             param.data -= learning_rate * param.grad
 
