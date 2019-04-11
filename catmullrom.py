@@ -27,11 +27,11 @@ class CatmullRomActivation(nn.Module):
         # weight matrix is of size (dxn) where d is the number of input dimensions and
         # n is the number of neurons
         # weights are initialized from normal distribution N(0,1)
-        self.weights = Parameter(torch.tensor(np.random.normal(size=(input_dim, num_neurons))).float())
+        self.weights = Parameter(torch.tensor(np.random.normal(size=(input_dim, num_neurons))).float(), requires_grad = True)
 
         # initial control points aren't used, instead, a copy of these are used as a result of the repear operation.
         # control_points_mat should be wrapped with Parameter as it's a parameter of the model.
-        self.control_points_mat = Parameter(initial_control_points.repeat(num_neurons, 1))
+        self.control_points_mat = Parameter(initial_control_points.repeat(num_neurons, 1), requires_grad = True)
 
         # number of control points, excluding the ghost points
         self.cp_num = self.control_points_mat.size()[1] - 2

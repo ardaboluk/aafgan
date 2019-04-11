@@ -1,7 +1,9 @@
 import numpy as np
 import torch
+import itertools
 
 from catmullrom import CatmullRomActivation
+import util
 
 """
 A fully-connected ReLU network with one hidden layer, trained to predict y from x
@@ -14,24 +16,15 @@ which you can think of as a neural network layer that has produces output from
 input and may have some trainable weights or other state.
 """
 
-def initialize_cp_tanh(range_min, range_max, cp_num):
-    """Initializes the control points by sampling them uniformly from hyperbolic tangent tanh.
-    Ghost points are trivial, the first one is to the left of the left-most control point.
-    Similarly, the second one is to the right of the right-most control point."""
-
-    init_cp = np.tanh(np.linspace(range_min, range_max, num=cp_num))
-
-    return init_cp
-
 device = torch.device('cpu')
 # device = torch.device('cuda') # Uncomment this to run on GPU
 
 range_min = -2.
 range_max = 2.
-num_control_points = 22
+num_control_points = 100
 
 # 3 neurons, 22 control points for each one
-initial_control_points = torch.tensor(initialize_cp_tanh(range_min, range_max, num_control_points))
+initial_control_points = torch.tensor(util.initialize_cp_tanh(range_min, range_max, num_control_points))
 
 # N is batch size; D_in is input dimension;
 # H is hidden dimension; D_out is output dimension.
@@ -62,6 +55,9 @@ model = torch.nn.Sequential(
 # squared error as a loss by setting reduction='elementwise_mean'.
 loss_fn = torch.nn.MSELoss(reduction='sum')
 
+#crlayer = next(itertools.islice(model.modules(), 2, 3))
+#loss_fn = loss_fn + torch.sum((crlayer.control_points_mat - initial_control_points)**2)
+
 learning_rate = 1e-4
 for t in range(500):
   # Forward pass: compute predicted y by passing x to the model. Module objects
@@ -89,3 +85,8 @@ for t in range(500):
   with torch.no_grad():
     for param in model.parameters():
         param.data -= learning_rate * param.grad
+
+util.plot_control_points(range_min, range_max, next(itertools.islice(model.modules(), 2, 3)).control_points_mat.data.numpy()[1])
+
+# print the final control points of Catmull-Rom activation
+print(torch.sum(torch.abs(next(itertools.islice(model.modules(), 2, 3)).control_points_mat - initial_control_points)).data.numpy())
