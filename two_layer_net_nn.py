@@ -21,10 +21,11 @@ device = torch.device('cpu')
 
 range_min = -2.
 range_max = 2.
-num_control_points = 100
+num_control_points = 22
 
 # 3 neurons, 22 control points for each one
 initial_control_points = torch.tensor(util.initialize_cp_tanh(range_min, range_max, num_control_points))
+util.plot_control_points(range_min, range_max, initial_control_points)
 
 # N is batch size; D_in is input dimension;
 # H is hidden dimension; D_out is output dimension.
@@ -43,7 +44,7 @@ y = torch.randn(N, D_out, device=device)
 model = torch.nn.Sequential(
           torch.nn.Linear(D_in, H),
           #torch.nn.ReLU(),
-          CatmullRomActivation(range_min, range_max, H, H, initial_control_points),
+          CatmullRomActivation(range_min, range_max, H, initial_control_points),
           torch.nn.Linear(H, D_out),
         ).to(device)
 
@@ -83,8 +84,12 @@ for t in range(500):
   # Update the weights using gradient descent. Each parameter is a Tensor, so
   # we can access its data and gradients like we did before.
   with torch.no_grad():
-    for param in model.parameters():
-        param.data -= learning_rate * param.grad
+    for name, param in model.named_parameters():
+        #print(name)
+        if name == '1.control_points_mat':
+            param.data -= learning_rate * 1000 * param.grad
+        else:
+            param.data -= learning_rate * param.grad
 
 util.plot_control_points(range_min, range_max, next(itertools.islice(model.modules(), 2, 3)).control_points_mat.data.numpy()[1])
 

@@ -10,7 +10,7 @@ from torch.nn.parameter import Parameter
 
 class CatmullRomActivation(nn.Module):
 
-    def __init__(self, range_min, range_max, input_dim, num_neurons, initial_control_points):
+    def __init__(self, range_min, range_max, input_dim, initial_control_points):
         """range_min and range_max specify the range in which the control points are defined.
         initial_control_points_mat hyperparameter spcifies control points for each neuron in the layer.
         It's shape is assumed to be (1xk) where k is the number of control points.
@@ -22,16 +22,12 @@ class CatmullRomActivation(nn.Module):
 
         self.range_min = range_min
         self.range_max = range_max
-        self.num_neurons = num_neurons
-
-        # weight matrix is of size (dxn) where d is the number of input dimensions and
-        # n is the number of neurons
-        # weights are initialized from normal distribution N(0,1)
-        self.weights = Parameter(torch.tensor(np.random.normal(size=(input_dim, num_neurons))).float(), requires_grad = True)
+        # number of neurons is the same as the input dimension
+        self.num_neurons = input_dim
 
         # initial control points aren't used, instead, a copy of these are used as a result of the repear operation.
         # control_points_mat should be wrapped with Parameter as it's a parameter of the model.
-        self.control_points_mat = Parameter(initial_control_points.repeat(num_neurons, 1), requires_grad = True)
+        self.control_points_mat = Parameter(initial_control_points.repeat(self.num_neurons, 1), requires_grad = True)
 
         # number of control points, excluding the ghost points
         self.cp_num = self.control_points_mat.size()[1] - 2
@@ -45,15 +41,12 @@ class CatmullRomActivation(nn.Module):
         [-1., 0., 1., 0.],
         [0., 2., 0., 0.]])
 
-    def forward(self, X):
+    def forward(self, input_s_vec):
         """Returns the Catmull-Rom spline interpolation for a given set of points.
-        X is assumed to be of size (mxd) where m is the number of samples and d is the number of input dimensions."""
-
-        # input_s_vec is of size (mxn)
-        input_s_vec = X.mm(self.weights)
+        input_s_vec is assumed to be a tensor of size (mxn) where m is the number of inputs and n is the input dimension. """
 
         # output is of size (mxn) where m is the number of inputs and n is the number of neurons in the layer
-        output_mat = torch.empty(X.size()[0], self.num_neurons)
+        output_mat = torch.empty(input_s_vec.size()[0], self.num_neurons)
 
         # indices of each control point are also of size (mxn), because we need different indices for each neuron for each sample
         # inputs should be between range_min and range_max
@@ -78,7 +71,7 @@ class CatmullRomActivation(nn.Module):
         # vectorize the normalized inputs to obtain matrix U of size (mxnx4)
         U = torch.stack((torch.pow(u, 3), torch.pow(u, 2), u, torch.ones(u.size())), 2)
 
-        for input_ind in range(X.size()[0]):
+        for input_ind in range(input_s_vec.size()[0]):
             Q = torch.stack((self.control_points_mat.gather(1, p__1_ind[input_ind].t().long()), self.control_points_mat.gather(1, p_0_ind[input_ind].t().long()),
                 self.control_points_mat.gather(1, p_1_ind[input_ind].t().long()), self.control_points_mat.gather(1, p_2_ind[input_ind].t().long())), 1).squeeze(2).t()
 
